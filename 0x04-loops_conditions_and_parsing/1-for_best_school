@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+#This shell script is used to display "Best School" on the terminal
+
+a="Best School"
+for _ in {1..10}
+do
+	echo "$a"
+done
