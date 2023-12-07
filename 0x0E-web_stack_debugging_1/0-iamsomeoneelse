@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# Check if the user argument is provided
+if [ $# -eq 0 ]; then
+  echo "Error: User argument missing."
+  echo "Usage: $0 <username>"
+  exit 1
+fi
+
+# Store the user argument in a variable
+username=$1
+
+# Run the 'whoami' command under the specified user
+sudo -u "$username" whoami
