@@ -1,37 +1,31 @@
-nstalls, configures, and also starts the load balancer
-# Update packages
-sudo apt-get update
+#!/usr/bin/env bash
+# This is a Bash that configure a New Server (Load Balancer) To meet a certain requirement as written below.
 
-# Install HAProxy
+sudo apt-get update -y
 sudo apt-get install haproxy -y
 
-# Configure HAProxy in system
-sudo tee /etc/haproxy/haproxy.cfg > /dev/null <<EOT
-global
-    daemon
-    maxconn 256
+# Configuration
+FILEPATH=/etc/haproxy/haproxy.cfg
 
-defaults
-    mode http
-    timeout connect 5000ms
-    timeout client 50000ms
-    timeout server 50000ms
-
-frontend http_front
+# Frontend Configuration
+FRONT="
+frontend my_frontend
     bind *:80
-    default_backend http_back
+    mode http
+    default_backend my_backend"
 
-backend http_back
+echo "$FRONT" | sudo tee -a "$FILEPATH"
+
+# Backend Configuration
+CONFIG="
+backend my_backend
     balance roundrobin
-    server web-01 100.26.233.175 check
-    server web-02 35.174.207.19 check
-EOT
+    server 328167-web-01 100.26.233.175:80 check
+    server 328167-web-02 35.174.207.19:80 check"
 
-# Test HAProxy configuration
-sudo haproxy -c -f /etc/haproxy/haproxy.cfg
+echo "$CONFIG" | sudo tee -a "$FILEPATH"
 
-# Start HAProxy
-sudo systemctl start haproxy
+# Enabling haproxy to run on by default
+echo "ENDABLE=1" | sudo tee /etc/default/haproxy
 
-# Enable HAProxy to start on restart
-sudo systemctl enable haproxy
+sudo service haproxy restart
