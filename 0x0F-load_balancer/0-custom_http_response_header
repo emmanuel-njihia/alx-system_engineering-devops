@@ -1,34 +1,51 @@
 #!/usr/bin/env bash
-# configures a new Ubuntu machine
+# configure web-02 to be identical to web-01
+# The name of the custom HTTP header must be X-Served-By
+# The value of the custom HTTP header must be the hostname
+#of the server Nginx is running on
+#!/usr/bin/env bash
 
-# Install nginx on web-01 server
-apt-get -y update
-apt-get -y install nginx
+# Update package repositories in system
+sudo apt-get -y update
 
-# Add custom response header to know the server name for debugging
-HOST_NAME=$(hostname)
-HEADER="\\\n\tadd_header X-Served-By $HOST_NAME;\n"
-FIND=$(grep "X-Server-by" /etc/nginx/sites-available/default)
-if [[ -z $FIND ]]; then
-    sed -i "23i $HEADER" /etc/nginx/sites-available/default
-fi
+# Install Nginx in system
+sudo apt-get -y install nginx
 
-# Create a firts index.html page
-echo "Hello World!" > /var/www/html/index.html
+# Allow Nginx HTTP traffic
+sudo ufw allow 'Nginx HTTP'
 
-# Add to the nginx configuration file a redirection to another page
-FIND=$(grep "redirect_me" /etc/nginx/sites-available/default)
-STRING="\\\n\tlocation /redirect_me {\n\t\t return 301 https://www.youtube.com/watch?v=3MbaGJN2ioQ;\n\t}\n"
-if [[ -z $FIND ]]; then
-    sed -i "42i $STRING" /etc/nginx/sites-available/default
-fi
+# Create necessary directories then set permissions
+sudo mkdir -p /var/www/html /var/www/error
+sudo chmod -R 755 /var/www
 
-# Add to the nginx configuration file a error page 404
-FIND=$(grep "error_page 404" /etc/nginx/sites-available/default)
-ERROR="\\\n\terror_page 404 /custom_404.html;\n"
-if [[ -z $FIND ]]; then
-    echo "Ceci n'est pas une page" > /var/www/html/custom_404.html
-    sed -i "40i $ERROR" /etc/nginx/sites-available/default
-fi
+# Create index and 404 pages
+echo 'Hello World!' | sudo tee /var/www/html/index.html >/dev/null
+echo "Ceci n'est pas une page" | sudo tee /var/www/html/404.html >/dev/null
 
-service nginx restart
+# Configure Nginx with custom header
+server_config=$(cat <<EOF
+server {
+    listen 80 default_server;
+    listen [::]:80 default_server;
+    root /var/www/html;
+    index index.html index.htm index.nginx-debian.html;
+    server_name _;
+    add_header X-Served-By \$hostname;
+    location / {
+        try_files \$uri \$uri/ =404;
+    }
+    if (\$request_filename ~ redirect_me) {
+        rewrite ^ https://youtube.com permanent;
+    }
+    error_page 404 /404.html;
+    location = /404.html {
+        internal;
+    }
+}
+EOF
+)
+#Apply config configuration
+echo "$server_config" | sudo tee /etc/nginx/sites-enabled/default >/dev/null
+
+# Restart Nginx service to apply new configuration
+sudo service nginx restart
